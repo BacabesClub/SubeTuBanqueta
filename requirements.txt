@@ -2,3 +2,4 @@ Flask
 werkzeug
 google-generativeai
 Pillow
+gunicorn
