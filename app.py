@@ -109,9 +109,15 @@ def upload():
             # Clasificar la imagen
             accessibility_level = classify_image(filepath)
 
-            # Generar coordenadas aleatorias en CDMX
-            lat = random.uniform(19.2, 19.6)
-            lon = random.uniform(-99.3, -98.9)
+            # Obtener la ubicación desde el formulario
+            lat = request.form.get('latitude')
+            lon = request.form.get('longitude')
+
+            # Comprobar si se recibieron las coordenadas
+            if not lat or not lon:
+                # Puedes manejar este error como prefieras
+                return "Error: No se recibió la ubicación.", 400
+            
             location = f"{lat},{lon}"
             
             conn = sqlite3.connect('database.db')

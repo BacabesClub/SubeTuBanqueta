@@ -56,6 +56,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('canvas');
     const captureBtn = document.getElementById('capture-btn');
     const status = document.getElementById('status');
+    let currentCoordinates = null;
+
     const constraints = {
         video: {
             width: { ideal: 640 },
@@ -79,48 +81,100 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    captureBtn.addEventListener('click', () => {
-        status.textContent = 'Procesando...';
+    function getLocation() {
+        return new Promise((resolve, reject) => {
+            if (!navigator.geolocation) {
+                reject("Geolocalización no es soportada por este navegador.");
+                return;
+            }
+            status.textContent = 'Obteniendo ubicación...';
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    status.textContent = 'Ubicación obtenida.';
+                    resolve(position.coords);
+                },
+                (error) => {
+                    let errorMessage = "Error al obtener la ubicación: ";
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMessage += "Permiso denegado.";
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMessage += "Información de ubicación no disponible.";
+                            break;
+                        case error.TIMEOUT:
+                            errorMessage += "La solicitud de ubicación ha caducado.";
+                            break;
+                        case error.UNKNOWN_ERROR:
+                            errorMessage += "Un error desconocido ha ocurrido.";
+                            break;
+                    }
+                    reject(errorMessage);
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        });
+    }
+
+    captureBtn.addEventListener('click', async () => {
         captureBtn.disabled = true;
+        status.textContent = 'Iniciando proceso...';
 
-        const context = canvas.getContext('2d');
-        canvas.width = 640;
-        canvas.height = 480;
-        
-        // Dibuja el frame del video en el canvas
-        context.drawImage(video, 0, 0, 640, 480);
+        try {
+            // 1. Obtener la ubicación
+            const coords = await getLocation();
+            currentCoordinates = {
+                latitude: coords.latitude,
+                longitude: coords.longitude
+            };
 
-        // Convierte el canvas a un archivo Blob
-        canvas.toBlob(blob => {
-            const formData = new FormData();
-            // El nombre 'banqueta_capturada.jpg' es importante para que el backend lo reconozca
-            formData.append('file', blob, 'banqueta_capturada.jpg');
+            // 2. Capturar la imagen
+            status.textContent = 'Capturando imagen...';
+            const context = canvas.getContext('2d');
+            canvas.width = 640;
+            canvas.height = 480;
+            context.drawImage(video, 0, 0, 640, 480);
 
-            // Envía la imagen al servidor
-            fetch('/upload', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                // Si la respuesta es una redirección, la seguimos
-                if (response.redirected) {
-                    window.location.href = response.url;
-                } else {
-                    return response.text(); // O .json() si esperas un JSON
-                }
-            })
-            .then(data => {
-                // Si no hubo redirección, puede que haya un resultado aquí
-                if (data) {
-                    document.body.innerHTML = data; // Reemplaza la página con el resultado
-                }
-            })
-            .catch(err => {
-                console.error('Error al subir la imagen:', err);
-                status.textContent = 'Error al enviar la imagen. Inténtalo de nuevo.';
-                captureBtn.disabled = false;
-            });
-        }, 'image/jpeg');
+            // 3. Enviar todo al servidor
+            canvas.toBlob(blob => {
+                const formData = new FormData();
+                formData.append('file', blob, 'banqueta_capturada.jpg');
+                formData.append('latitude', currentCoordinates.latitude);
+                formData.append('longitude', currentCoordinates.longitude);
+
+                status.textContent = 'Enviando datos...';
+                fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (response.redirected) {
+                        window.location.href = response.url;
+                    } else {
+                        return response.text();
+                    }
+                })
+                .then(data => {
+                    if (data) {
+                        document.body.innerHTML = data;
+                    }
+                })
+                .catch(err => {
+                    console.error('Error al subir los datos:', err);
+                    status.textContent = 'Error al enviar los datos. Inténtalo de nuevo.';
+                    captureBtn.disabled = false;
+                });
+            }, 'image/jpeg');
+
+        } catch (error) {
+            console.error(error);
+            status.textContent = error;
+            captureBtn.disabled = false;
+        }
     });
 
     startCamera();
