@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Inicio - Accesibilidad Urbana{% endblock %}
+
+{% block content %}
+<div class="grid-container">
+    <a href="{{ url_for('upload') }}" class="grid-button" style="background-image: url('{{ url_for('static', filename='img/sube.jpg') }}');">
+        <span>SUBE TU BANQUETA</span>
+    </a>
+    <a href="{{ url_for('mapa') }}" class="grid-button" style="background-image: url('{{ url_for('static', filename='img/mapa.png') }}');">
+        <span>MAPA ACCESIBILIDAD</span>
+    </a>
+    <a href="https://www.escom.ipn.mx/urbalab/" target="_blank" class="grid-button" style="background-image: url('{{ url_for('static', filename='img/explicacion.png') }}');">
+        <span>CONOCE EL URBANDATALAB</span>
+    </a>
+</div>
+{% endblock %}

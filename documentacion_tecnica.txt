@@ -1,0 +1,118 @@
+
+# Documentación Técnica: Proyecto "ITZAMNÁ - Accesibilidad Urbana"
+
+## 1. Resumen del Proyecto
+
+ITZAMNÁ es una aplicación web diseñada para evaluar y mapear la accesibilidad de la infraestructura peatonal (banquetas, aceras, etc.). Los usuarios pueden subir imágenes de estas vías, y la aplicación utiliza un modelo de Inteligencia Artificial (Google Gemini 1.5 Flash) para clasificarlas automáticamente según su nivel de accesibilidad. Los datos recopilados se almacenan y se visualizan en un mapa interactivo, creando una base de datos georreferenciada sobre la calidad de las banquetas.
+
+El nombre del proyecto, "ITZAMNÁ", es una referencia al dios maya de la sabiduría y el conocimiento.
+
+## 2. Arquitectura y Tecnologías
+
+- **Backend:** Flask (Python)
+- **Frontend:** HTML5, CSS3, JavaScript
+- **Base de Datos:** SQLite
+- **Clasificación de Imágenes:** Google Generative AI (Gemini 1.5 Flash)
+- **Mapa Interactivo:** Leaflet.js con tiles de Stadia Maps.
+- **Dependencias Python Principales:**
+  - `Flask`: Micro-framework web.
+  - `werkzeug`: Utilidades para aplicaciones WSGI (usado para el manejo seguro de nombres de archivo).
+  - `google-generativeai`: SDK de Python para la API de Gemini.
+  - `Pillow (PIL)`: Para la manipulación de imágenes antes de enviarlas a la API.
+
+## 3. Estructura de Archivos
+
+```
+/calidad_aire/
+│
+├── app.py                  # Lógica principal de la aplicación Flask, rutas y conexión con la IA.
+├── database.db             # Base de datos SQLite donde se almacenan los registros.
+├── .calf_lote.py           # Script auxiliar (propósito a determinar).
+│
+├── static/                 # Archivos estáticos (CSS, imágenes de la interfaz, etc.).
+│   ├── css/
+│   │   └── main.css
+│   ├── img/
+│   │   ├── sube.jpg
+│   │   ├── mapa.png
+│   │   └── explicacion.png
+│   └── uploads/            # Directorio donde se guardan las imágenes subidas por los usuarios.
+│
+└── templates/              # Plantillas HTML que renderiza Flask.
+    ├── base.html           # Plantilla base con la estructura común (navbar, etc.).
+    ├── index.html          # Página de inicio con las 3 opciones principales.
+    ├── upload.html         # Formulario para subir una imagen.
+    ├── result.html         # Muestra el resultado de la clasificación de una imagen.
+    ├── mapa.html           # Contiene el mapa interactivo de Leaflet.
+    └── database.html       # Muestra los registros de la base de datos en una tabla.
+```
+
+## 4. Flujo de Funcionamiento Detallado
+
+### 4.1. Flujo del Usuario
+
+1.  **Página de Inicio (`/`)**: El usuario llega a `index.html`, que presenta tres opciones:
+    - "SUBE TU BANQUETA": Dirige a la página de subida de imágenes.
+    - "MAPA ACCESIBILIDAD": Dirige al mapa interactivo.
+    - "CONOCE EL URBANDATALAB": Enlace externo al sitio del UrbanDataLab.
+
+2.  **Subida de Imagen (`/upload`)**:
+    - El usuario accede a `upload.html`, que contiene un formulario para seleccionar un archivo de imagen.
+    - Al enviar el formulario (POST a `/upload`), la imagen se sube al servidor.
+
+3.  **Procesamiento en el Backend (`app.py`)**:
+    - La ruta `@app.route('/upload', methods=['POST'])` recibe el archivo.
+    - La imagen se guarda en la carpeta `static/uploads/` con un nombre de archivo seguro.
+    - Se llama a la función `classify_image(filepath)`.
+
+4.  **Clasificación con IA (`classify_image`)**:
+    - La imagen se abre con la librería Pillow.
+    - Se construye un *prompt* muy específico que instruye al modelo `gemini-1.5-flash` para que analice la imagen y la clasifique estrictamente en una de cuatro categorías: `Accesible`, `Medianamente accesible`, `Poco accesible` o `Inaccesible`.
+    - El *prompt* incluye descripciones detalladas de cada categoría para guiar al modelo.
+    - Se envía la imagen y el *prompt* a la API de Google Gemini.
+    - La respuesta de texto del modelo se limpia y se valida para asegurar que corresponda a una de las categorías permitidas. Si la respuesta no es clara, se asigna "Inaccesible" por defecto.
+
+5.  **Almacenamiento en Base de Datos**:
+    - Se generan coordenadas de latitud y longitud **aleatorias** dentro de un polígono que aproxima la Ciudad de México.
+    - Se establece una conexión con la base de datos `database.db`.
+    - Se inserta un nuevo registro en la tabla `images` con:
+        - `file_name`: Nombre del archivo de la imagen.
+        - `location`: Coordenadas "lat,lon".
+        - `accessibility`: La categoría devuelta por la IA.
+        - `date`: La fecha y hora actual.
+
+6.  **Visualización del Resultado (`/result`)**:
+    - El usuario es redirigido a `result.html`.
+    - Esta página muestra la imagen que subió y el nivel de accesibilidad que fue detectado por la IA.
+    - Ofrece botones para "Ver en el Mapa" o "Subir otra".
+
+### 4.2. Visualización de Datos
+
+- **Mapa (`/mapa`)**:
+    - La página `mapa.html` inicializa un mapa de Leaflet centrado en la CDMX.
+    - Mediante JavaScript, se realiza una petición `fetch` a la ruta `/api/points`.
+    - La API (`/api/points`) consulta la base de datos, obtiene todos los registros y los devuelve en formato JSON.
+    - El script del mapa itera sobre cada punto JSON, extrae las coordenadas y crea un marcador en el mapa.
+    - Cada marcador tiene un `popup` que, al hacer clic, muestra la imagen de la banqueta y su nivel de accesibilidad.
+
+- **Base de Datos en Tabla (`/database`)**:
+    - La ruta `/database` consulta todos los registros de la tabla `images`.
+    - Renderiza `database.html`, pasando los registros.
+    - La plantilla muestra los datos en una tabla HTML, incluyendo un enlace a cada imagen.
+
+## 5. Base de Datos
+
+- **Tabla:** `images`
+- **Columnas:**
+  - `id`: INTEGER, PRIMARY KEY, AUTOINCREMENT
+  - `file_name`: TEXT (e.g., "banqueta_rota.jpg")
+  - `location`: TEXT (e.g., "19.4326,-99.1332")
+  - `accessibility`: TEXT (e.g., "Poco accesible")
+  - `date`: TEXT (e.g., "2024-07-01 12:30:00")
+
+## 6. Consideraciones y Puntos Clave
+
+- **Clave de API:** La clave de la API de Google Gemini está actualmente hardcodeada en `app.py`. Para un entorno de producción, debería gestionarse de forma segura a través de variables de entorno.
+- **Coordenadas Aleatorias:** Una de las características más importantes a notar es que la geolocalización de las imágenes **no es real**. Se genera de forma aleatoria. Para una implementación futura, se debería capturar la ubicación real desde el dispositivo del usuario (con su permiso).
+- **Manejo de Errores:** La función `classify_image` tiene un bloque `try...except` básico que asigna "Inaccesible" si falla la clasificación. La API del mapa también tiene un manejo de errores si la petición `fetch` falla.
+- **Script `.calf_lote.py`:** El propósito de este archivo no es evidente a partir del código principal. Requiere un análisis individual para determinar su función. Podría ser un script para procesar imágenes en lote, para pruebas, o para tareas de mantenimiento.

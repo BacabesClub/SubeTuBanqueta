@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}Sube tu Banqueta{% endblock %}
+
+{% block head %}
+<style>
+    #camera-container {
+        position: relative;
+        width: 100%;
+        max-width: 640px;
+        margin: 0 auto;
+        border-radius: 15px;
+        overflow: hidden;
+        border: 4px solid #8e2de2;
+    }
+    #video {
+        width: 100%;
+        height: auto;
+        display: block;
+    }
+    #capture-overlay {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 200px; /* Tamaño del cuadrado de captura */
+        height: 200px;
+        border: 3px dashed #fff;
+        transform: translate(-50%, -50%);
+        box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);
+    }
+    .camera-controls {
+        text-align: center;
+        margin-top: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="upload-container">
+    <h1>Apunta con tu cámara a la banqueta</h1>
+    <div id="camera-container">
+        <video id="video" autoplay playsinline></video>
+        <div id="capture-overlay"></div>
+    </div>
+    <canvas id="canvas" style="display:none;"></canvas>
+    
+    <div class="camera-controls">
+        <button id="capture-btn" class="btn-submit">Tomar Foto y Clasificar</button>
+    </div>
+    <p id="status" style="margin-top: 1rem; font-weight: bold;"></p>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const captureBtn = document.getElementById('capture-btn');
+    const status = document.getElementById('status');
+    const constraints = {
+        video: {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            facingMode: 'environment' // Usar la cámara trasera
+        }
+    };
+
+    async function startCamera() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            video.srcObject = stream;
+        } catch (err) {
+            console.error("Error al acceder a la cámara: ", err);
+            status.textContent = "Error: No se pudo acceder a la cámara. Asegúrate de dar permiso.";
+            if (err.name === "NotAllowedError") {
+                status.textContent = "Permiso de cámara denegado. Por favor, habilítalo en la configuración de tu navegador.";
+            } else if (err.name === "NotFoundError") {
+                status.textContent = "No se encontró una cámara compatible.";
+            }
+        }
+    }
+
+    captureBtn.addEventListener('click', () => {
+        status.textContent = 'Procesando...';
+        captureBtn.disabled = true;
+
+        const context = canvas.getContext('2d');
+        canvas.width = 640;
+        canvas.height = 480;
+        
+        // Dibuja el frame del video en el canvas
+        context.drawImage(video, 0, 0, 640, 480);
+
+        // Convierte el canvas a un archivo Blob
+        canvas.toBlob(blob => {
+            const formData = new FormData();
+            // El nombre 'banqueta_capturada.jpg' es importante para que el backend lo reconozca
+            formData.append('file', blob, 'banqueta_capturada.jpg');
+
+            // Envía la imagen al servidor
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                // Si la respuesta es una redirección, la seguimos
+                if (response.redirected) {
+                    window.location.href = response.url;
+                } else {
+                    return response.text(); // O .json() si esperas un JSON
+                }
+            })
+            .then(data => {
+                // Si no hubo redirección, puede que haya un resultado aquí
+                if (data) {
+                    document.body.innerHTML = data; // Reemplaza la página con el resultado
+                }
+            })
+            .catch(err => {
+                console.error('Error al subir la imagen:', err);
+                status.textContent = 'Error al enviar la imagen. Inténtalo de nuevo.';
+                captureBtn.disabled = false;
+            });
+        }, 'image/jpeg');
+    });
+
+    startCamera();
+});
+</script>
+{% endblock %}

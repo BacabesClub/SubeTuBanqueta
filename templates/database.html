@@ -1,0 +1,34 @@
+
+{% extends "base.html" %}
+
+{% block title %}Base de Datos de Imágenes{% endblock %}
+
+{% block content %}
+<div style="width: 90%; text-align: center;">
+    <h1>Registros de Accesibilidad</h1>
+    <table class="db-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Archivo</th>
+                <th>Ubicación</th>
+                <th>Accesibilidad</th>
+                <th>Fecha</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            <tr>
+                <td>{{ row.id }}</td>
+                <td><a href="{{ url_for('static', filename='uploads/' + row.file_name) }}" target="_blank">{{ row.file_name }}</a></td>
+                <td>{{ row.location }}</td>
+                <td>{{ row.accessibility }}</td>
+                <td>{{ row.date }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <br>
+    <a href="{{ url_for('index') }}" class="btn-submit" style="text-decoration: none;">Volver al Inicio</a>
+</div>
+{% endblock %}
