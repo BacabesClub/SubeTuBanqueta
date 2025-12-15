@@ -1,0 +1,110 @@
+/* --- Importar Fuente --- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&display=swap');
+
+/* --- Tema Claro: Fondo limpio, acentos en púrpura --- */
+:root:not([data-theme="dark"]) {
+    --pico-font-family: 'Inter', sans-serif;
+    --pico-background-color: #f8f9fa; /* Fondo blanco-grisáceo */
+    --pico-color: #212529;
+    --pico-card-background-color: #ffffff;
+    --pico-card-border-color: #e9ecef;
+    --pico-card-box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+
+    /* --- NUEVO PÚRPURA --- 
+       Un tono "Deep Purple" (Material Design 500)
+       Es elegante y fuerte, pero no "chillón". */
+    --pico-primary: #673ab7; 
+    --pico-primary-hover: #7e57c2; /* Un tono más claro para el hover */
+    --pico-primary-inverse: #ffffff;
+}
+
+/* --- Tema Oscuro: Inmersión total en la identidad púrpura --- */
+:root[data-theme="dark"] {
+    --pico-font-family: 'Inter', sans-serif;
+    
+    /* --- Púrpura Primario --- */
+    --pico-primary: #8559d9; /* Un púrpura más brillante para destacar en fondo oscuro */
+    --pico-primary-hover: #9e78e6;
+    --pico-primary-inverse: #ffffff;
+
+    /* --- Fondos --- */
+    --pico-background-color: #201d2b; /* Fondo púrpura-negro muy oscuro */
+    --pico-color: #ecf0f1;
+    --pico-border-color: #3f3a50;
+
+    /* --- Tarjetas (Delimitadores) --- */
+    --pico-card-background-color: #2d283e; /* Tarjeta púrpura oscuro */
+    --pico-card-border-color: #4a445c;
+    --pico-card-box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    
+    /* Color de texto en encabezados */
+    --pico-h1-color: #ffffff;
+    --pico-h2-color: #f5f3f9;
+    --pico-h3-color: #f5f3f9;
+}
+
+/* --- Estilos Comunes (Botones de Index) --- */
+.card-button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-size: cover;
+    background-position: center;
+    position: relative;
+    text-decoration: none;
+    color: white;
+    font-size: 2rem;
+    font-weight: 700;
+    text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.9);
+    transition: transform 0.3s ease, filter 0.3s ease;
+    border-radius: var(--pico-border-radius);
+    overflow: hidden;
+    flex: 1;
+    min-height: 200px;
+    padding: 2rem;
+    --pico-card-padding: 0;
+}
+
+.card-button::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(0, 0, 0, 0.55);
+    z-index: 1;
+    transition: background-color 0.3s ease;
+}
+
+.card-button span {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+}
+
+.card-button:hover {
+    transform: translateY(-5px) scale(1.02);
+    filter: brightness(1.1);
+}
+
+.card-button:hover::before {
+    background-color: rgba(0, 0, 0, 0.4);
+}
+
+/* --- Estilos para Nav y Footer (Delimitadores) --- */
+nav strong a {
+    font-size: 1.5rem;
+    letter-spacing: 1px;
+    color: var(--pico-primary); /* Color de marca en el logo */
+}
+
+nav strong a:hover {
+    color: var(--pico-primary-hover);
+}
+
+/* El footer se estiliza automáticamente por Pico, 
+   pero le damos un poco de padding y centrado. */
+footer {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+    text-align: center;
+    font-size: 0.9rem;
+}

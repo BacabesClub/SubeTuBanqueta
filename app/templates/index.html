@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Inicio - Accesibilidad Urbana{% endblock %}
+
+{% block content %}
+
+<section style="text-align: center; margin-top: 3rem; margin-bottom: 3rem;">
+    <h1 style="font-size: 3rem;">Bienvenido a ITZAMNÁ</h1>
+    <p style="font-size: 1.25rem; color: var(--pico-secondary-color);">
+        Mapea la accesibilidad de las banquetas en tu ciudad.
+        <br>
+        Tu reporte ayuda a crear un entorno más inclusivo.
+    </p>
+</section>
+
+<div class="grid" style="gap: 2rem;">
+    
+    <article class="card-button" style="background-image: url('{{ url_for('static', filename='img/sube.jpg') }}');">
+        <a href="{{ url_for('main.upload') }}" class="pico-stretched-link">
+            <span>SUBE TU BANQUETA</span>
+        </a>
+    </article>
+
+    <article class="card-button" style="background-image: url('{{ url_for('static', filename='img/obstaculo.JPG') }}');">
+        <a href="{{ url_for('main.reportar_obstaculo') }}" class="pico-stretched-link">
+            <span>REPORTA UN OBSTÁCULO</span>
+        </a>
+    </article>
+
+    <article class="card-button" style="background-image: url('{{ url_for('static', filename='img/mapa.png') }}');">
+        <a href="{{ url_for('main.mapa') }}" class="pico-stretched-link">
+            <span>MAPA ACCESIBILIDAD</span>
+        </a>
+    </article>
+
+    <article class="card-button" style="background-image: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('{{ url_for('static', filename='img/dashboard.jpg') }}'); border: 2px solid var(--pico-primary);">
+        <a href="https://urbandatalab.escom.ipn.mx/dashboard/" target="_blank" class="pico-stretched-link">
+            <span>URBAN DASHBOARD ↗</span>
+        </a>
+    </article>
+
+</div>
+
+<div class="grid" style="margin-top: 2rem;">
+    <article class="card-button" style="background-image: url('{{ url_for('static', filename='img/explicacion.png') }}'); min-height: 150px;">
+        <a href="https://urbandatalab.escom.ipn.mx/" target="_blank" class="pico-stretched-link">
+            <span>CONOCE EL URBANDATALAB</span>
+        </a>
+    </article>
+</div>
+{% endblock %}

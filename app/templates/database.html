@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Base de Datos de Imágenes{% endblock %}
+
+{% block content %}
+<div style="width: 100%; text-align: center;">
+    <h1>Registros de Accesibilidad</h1>
+    
+    <div style="overflow: auto;">
+        <table>
+		<thead>
+    <tr>
+        <th>ID</th>
+        <th>Archivo</th>
+        <th>Ubicación</th>
+        <th>Tipo Reporte</th> <th>Accesibilidad (Usuario)</th>
+        <th>Accesibilidad (Modelo)</th>
+        <th>Observaciones</th>
+        <th>Fecha</th>
+    </tr>
+</thead>
+<tbody>
+    {% for row in rows %}
+    <tr>
+        <td>{{ row.id }}</td>
+        <td><a href="{{ url_for('static', filename='uploads/' + row.file_name) }}" target="_blank">{{ row.file_name }}</a></td>
+        <td>{{ row.location }}</td>
+        <td>{{ row.report_type }}</td> <td>{{ row.user_accessibility | default('N/A', true) }}</td>
+        <td>{{ row.model_accessibility | default('N/A', true) }}</td>
+        <td>{{ row.observations | default('', true) }}</td>
+        <td>{{ row.date }}</td>
+    </tr>
+    {% endfor %}
+</tbody>
+        </table>
+    </div>
+    <br>
+    
+    <a href="{{ url_for('main.index') }}" role="button" class="secondary" style="text-decoration: none; max-width: 200px; margin: 0 auto;">Volver al Inicio</a>
+</div>
+{% endblock %}

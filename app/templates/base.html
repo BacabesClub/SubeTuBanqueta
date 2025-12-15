@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark"> <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ITZAMNÁ{% endblock %}</title>
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"/>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <nav class="container-fluid">
+        <ul>
+            <li><strong><a href="{{ url_for('main.index') }}" class="contrast">ITZAMNÁ</a></strong></li>
+        </ul>
+        <ul>
+            <li>
+                <a href="#" id="theme-switcher" data-tooltip="Cambiar tema" data-placement="left">🌓</a>
+            </li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="container">
+        <small>
+            Proyecto de Accesibilidad Urbana &copy; 2025.
+            <br>
+            Una colaboración con <a href="https://www.escom.ipn.mx/urbalab/" target="_blank">Urbalab</a>.
+        </small>
+    </footer>
+    <script>
+        // Script simple para cambiar el tema
+        document.getElementById('theme-switcher').addEventListener('click', (e) => {
+            e.preventDefault();
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            html.setAttribute('data-theme', newTheme);
+        });
+    </script>
+</body>
+</html>

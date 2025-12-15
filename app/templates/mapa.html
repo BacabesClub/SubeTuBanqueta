@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Mapa de Accesibilidad{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<style>
+    /* Estilos del Popup (adaptados a variables de Pico) */
+    .leaflet-popup-content-wrapper {
+        background: var(--pico-card-background-color);
+        color: var(--pico-color);
+        border-radius: var(--pico-border-radius);
+        box-shadow: var(--pico-card-box-shadow);
+        border: 1px solid var(--pico-card-border-color);
+    }
+    .leaflet-popup-content {
+        margin: 0; padding: 0;
+        width: 240px !important;
+    }
+    .leaflet-popup-content img {
+        width: 100%; height: auto; display: block;
+        border-top-left-radius: var(--pico-border-radius);
+        border-top-right-radius: var(--pico-border-radius);
+    }
+    .leaflet-popup-content .accessibility-info {
+        padding: 15px;
+        font-size: 1.1em;
+        font-weight: bold;
+        text-align: center;
+        border-bottom-left-radius: var(--pico-border-radius);
+        border-bottom-right-radius: var(--pico-border-radius);
+    }
+    .leaflet-popup-tip {
+        background: var(--pico-card-background-color);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="container-fluid">
+    <h1 style="text-align: center;">Mapa de Puntos de Accesibilidad</h1>
+    <div id="map" style="height: 80vh; width: 100%; border-radius: var(--pico-border-radius);"></div>
+</main>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Centramos en CDMX por defecto
+        var map = L.map('map').setView([19.4326, -99.1332], 11);
+
+        L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png', {
+            maxZoom: 20,
+            attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        function getAccessibilityColor(level) {
+            switch (level) {
+                case 'Accesible': return '#2ecc71';
+                case 'Medianamente accesible': return '#f1c40f';
+                case 'Poco accesible': return '#e67e22';
+                case 'Inaccesible': return '#e74c3c';
+                default: return '#95a5a6';
+            }
+        }
+
+        const apiUrl = "{{ url_for('main.api_points') }}";
+        const markers = {};
+
+        fetch(apiUrl)
+            .then(response => response.json())
+            .then(points => {
+                points.forEach(point => {
+                    const lat = point.lat;
+                    const lon = point.lng;
+
+                    // Filtro de seguridad
+                    if (!lat || !lon || (lat === 0 && lon === 0)) {
+                        return; 
+                    }
+                    
+                    const imageUrl = `{{ url_for('static', filename='uploads/') }}${point.file_name}`;
+                    const reportType = point.report_type || 'accessibility';
+                    let marker;
+
+                    // --- CORRECCIÓN AQUÍ: AÑADIMOS dataset_historico ---
+                    if (reportType === 'accessibility' || reportType === 'dataset_historico') {
+                        const accessibility = point.accessibility || 'No disponible';
+                        const color = getAccessibilityColor(accessibility);
+
+                        marker = L.circleMarker([lat, lon], {
+                            radius: 8, 
+                            fillColor: color, 
+                            color: "#fff", 
+                            weight: 2, 
+                            opacity: 1, 
+                            fillOpacity: 0.8
+                        }).addTo(map);
+
+                        const popupContent = `
+                            <img src="${imageUrl}" alt="Imagen de ${point.file_name}" style="max-width: 240px; height: auto;">
+                            <div class="accessibility-info" style="background-color: ${color}; color: #000;">
+                                Nivel: ${accessibility}
+                            </div>`;
+                        marker.bindPopup(popupContent);
+
+                    } else if (reportType === 'obstacle') {
+                        const obstacleColor = '#e74c3c';
+                        const description = point.observations || 'Obstáculo reportado';
+
+                        marker = L.circleMarker([lat, lon], {
+                            radius: 7, 
+                            fillColor: obstacleColor, 
+                            color: "#fff", 
+                            weight: 2, 
+                            opacity: 1, 
+                            fillOpacity: 0.9
+                        }).addTo(map);
+                        
+                        const popupContent = `
+                            <img src="${imageUrl}" alt="Imagen de ${point.file_name}" style="max-width: 240px; height: auto;">
+                            <div class="accessibility-info" style="background-color: ${obstacleColor}; color: #fff; padding: 10px 15px; font-size: 1em;">
+                                <strong>Obstáculo:</strong><br>${description}
+                            </div>`;
+                        marker.bindPopup(popupContent);
+                    }
+                    
+                    if (marker) {
+                        markers[point.id] = marker;
+                    }
+                });
+
+                // Highlight logic (si vienes de subir una foto)
+                const urlParams = new URLSearchParams(window.location.search);
+                const highlightId = urlParams.get('highlight');
+                if (highlightId && markers[highlightId]) {
+                    const markerToHighlight = markers[highlightId];
+                    // Hacemos zoom al punto específico
+                    map.setView(markerToHighlight.getLatLng(), 16);
+                    markerToHighlight.openPopup();
+                }
+            })
+            .catch(error => {
+                console.error('Error al cargar los puntos:', error);
+            });
+    });
+</script>
+
+{% endblock %}

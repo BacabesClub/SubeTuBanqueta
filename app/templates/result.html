@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Reporte Enviado{% endblock %}
+
+{% block content %}
+<article>
+    <h1 style="text-align: center;">¡Gracias por tu reporte!</h1>
+    
+    <div style="text-align: center; margin-bottom: 2rem;">
+        <h3>Imagen Enviada:</h3>
+        <img src="{{ url_for('static', filename='uploads/' + filename) }}" alt="Imagen de la banqueta" style="max-width: 100%; max-height: 400px; border-radius: var(--pico-border-radius); border: 2px solid var(--pico-primary);">
+    </div>
+    
+    {% if report_type == 'accessibility' %}
+        <div class="grid">
+            <div style="text-align: center;">
+                <h3>Tu Calificación:</h3>
+                <p style="font-size: 2rem; font-weight: bold; color: var(--pico-primary); margin: 0;">{{ accessibility }}</p>
+            </div>
+            
+            <div style="text-align: center;">
+                <h3>Predicción del Modelo:</h3>
+                <p style="font-size: 2rem; font-weight: bold; color: #3498db; margin: 0;">{{ model_prediction | default('N/A', true) }}</p>
+            </div>
+        </div>
+    
+    {% elif report_type == 'obstacle' %}
+        <div style="text-align: center; margin-bottom: 1.5rem;">
+            <h3>Obstáculo Reportado:</h3>
+            {% if observations %}
+                <p style="font-size: 1.25rem; font-style: italic;">"{{ observations }}"</p>
+            {% else %}
+                <p>(Sin descripción)</p>
+            {% endif %}
+        </div>
+    {% endif %}
+    <div style="margin-top: 2.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <a href="{{ url_for('main.mapa', highlight=new_id) }}" role="button" style="text-decoration: none;">Ver en el Mapa</a>
+        <a href="{{ back_url | default(url_for('main.index')) }}" role="button" class="secondary" style="text-decoration: none;">Subir otra</a>
+    </div>
+</article>
+{% endblock %}

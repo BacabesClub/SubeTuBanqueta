@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sube tu Banqueta</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='sube-tu-banqueta.css') }}">
+</head>
+<body>
+
+    <div class="container">
+        <div class="instruction-screen">
+            <div class="instruction-content">
+                <p class="instruction-text">TELEFONO PARALELO</p>
+                <p class="instruction-text">A LA BANQUETA</p>
+                <img src="{{ url_for('static', filename='img/ilustracion-persona.png') }}" alt="Ilustración de persona sosteniendo teléfono" class="illustration"> <p class="instruction-text">A LA ALTURA</p>
+                <p class="instruction-text">DE LA CINTURA</p>
+            </div>
+            <div class="swipe-indicator">
+                <p>DESLICE HACIA ARRIBA</p>
+                <div class="arrow-up"></div> 
+            </div>
+        </div>
+
+        <div class="camera-screen">
+            <div class="instruction-bar">
+                <div class="instruction-pull-handle"></div> <p class="instruction-bar-text">INSTRUCCIONES</p>
+            </div>
+            <div class="camera-feed">
+                <video id="cameraFeed" autoplay playsinline></video>
+                <img id="capturedPhoto" src="{{ url_for('static', filename='img/fondo-camara.png') }}" alt="Vista de cámara de la banqueta"> <canvas id="captureCanvas" style="display: none;"></canvas>
+
+                <div id="previewContainer" class="preview-container">
+                    <canvas id="previewCanvas"></canvas>
+                </div>
+
+                <div class="camera-overlay">
+                    <div class="corner tl"></div>
+                    <div class="corner tr"></div>
+                    <div class="corner bl"></div>
+                    <div class="corner br"></div>
+                </div>
+            </div>
+            <div class="capture-area">
+                <div class="capture-button"></div> 
+                <input type="file" id="file-input" accept="image/*" style="display: none;">
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='sube-tu-banqueta.js') }}"></script>
+</body>
+</html>

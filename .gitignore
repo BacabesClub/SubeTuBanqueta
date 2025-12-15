@@ -1,0 +1,40 @@
+# --- Python ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# --- Base de Datos (Se genera sola con el CSV de HF) ---
+*.db
+*.sqlite3
+*.bak
+*.bk
+database.db*
+# Ignora todos los backups con fecha
+database.db-*
+
+# --- Archivos Grandes / Binarios (Están en Hugging Face) ---
+modelo/
+*.zip
+*.pt
+*.pth
+*.h5
+
+# --- Datos Crudos (Están en Hugging Face) ---
+*.csv
+img_origen/
+temp_import/
+te/
+
+# --- Archivos de Runtime (Se generan al usar la app) ---
+app/static/uploads/*
+!app/static/uploads/.gitkeep
+
+# --- Seguridad y Secretos ---
+token
+.env
+instance/
+
+# --- Basura del Sistema ---
+.DS_Store

@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block title %}Sube tu Banqueta{% endblock %}
+
+{% block head %}
+<style>
+    #camera-wrapper { position: relative; width: 100%; max-width: 640px; padding-top: 75%; margin: 0 auto; border-radius: var(--pico-border-radius); overflow: hidden; border: 2px solid var(--pico-primary); background-color: #000; }
+    #video, #preview-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; object-fit: cover; }
+    .camera-controls { text-align: center; margin-top: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .hidden { display: none !important; }
+
+    /* Estilos del Overlay de Instrucciones (sin cambios) */
+    #instruction-overlay {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background-color: rgba(44, 62, 80, 0.95);
+        border-radius: var(--pico-border-radius);
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: center;
+        text-align: center;
+        cursor: grab;
+        transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        padding: 0; /* Pico añade padding a <article>, lo reseteamos */
+    }
+    #instruction-overlay.is-hidden {
+        transform: translateY(calc(-100% + 40px));
+        cursor: default;
+    }
+    #instruction-content {
+        padding: 20px;
+        color: #ecf0f1;
+    }
+    #instruction-content img { max-width: 150px; margin-bottom: 20px; }
+    #instruction-content p { font-size: 1.2rem; font-weight: bold; margin: 0; }
+    #instruction-tab {
+        width: 100%;
+        padding: 10px;
+        background-color: var(--pico-primary);
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+        user-select: none;
+        border-bottom-left-radius: 10px;
+        border-bottom-right-radius: 10px;
+    }
+    #instruction-overlay.is-hidden #instruction-tab {
+        border-radius: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<article style="position: relative; overflow: hidden;"> <div id="instruction-overlay">
+        <div id="instruction-content">
+            <img src="{{ url_for('static', filename='img/instrucciones-persona.png') }}" alt="Ilustración de instrucciones">
+            <p>Toma la captura de tu banqueta en una posición semi-paralela al suelo.</p>
+        </div>
+        <div id="instruction-tab">
+            <span>▼ ARRASTRA O TOCA PARA CONTINUAR ▼</span>
+        </div>
+    </div>
+
+    <div id="capture-view">
+        <h1 style="text-align: center;">1. Encuadra y toma la foto</h1>
+        <div id="camera-wrapper">
+            <video id="video" autoplay playsinline></video>
+        </div>
+        <div class="camera-controls" style="grid-template-columns: 1fr;"> <button id="shutter-btn">Obturador</button>
+        </div>
+    </div>
+
+    <div id="rating-view" class="hidden">
+        <h1 style="text-align: center;">2. Califica y envía</h1>
+        <div id="camera-wrapper"><canvas id="preview-canvas"></canvas></div>
+        
+        <fieldset>
+            <legend>¿Cómo calificarías su accesibilidad?</legend>
+            <input type="radio" id="acc-1" name="accessibility" value="Accesible" checked>
+            <label for="acc-1">Accesible</label><br>
+            <input type="radio" id="acc-2" name="accessibility" value="Medianamente accesible">
+            <label for="acc-2">Medianamente accesible</label><br>
+            <input type="radio" id="acc-3" name="accessibility" value="Poco accesible">
+            <label for="acc-3">Poco accesible</label><br>
+            <input type="radio" id="acc-4" name="accessibility" value="Inaccesible">
+            <label for="acc-4">Inaccesible</label>
+        </fieldset>
+        
+        <fieldset style="margin-top: 1rem;">
+            <legend>Observaciones (opcional)</legend>
+            <textarea id="observations-text" name="observations" rows="3" placeholder="Ej: Coladera rota, poste obstruyendo, rampa necesaria..."></textarea>
+        </fieldset>
+        
+        <div class="camera-controls">
+            <button id="retake-btn" class="secondary">Volver a tomar</button>
+            <button id="send-btn" class="primary">Enviar Reporte</button>
+        </div>
+    </div>
+    
+    <p id="status" style="margin-top: 1rem; font-weight: bold; text-align: center;"></p>
+</article>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // --- LÓGICA PARA EL SLIDE DE INSTRUCCIONES ---
+    const overlay = document.getElementById('instruction-overlay');
+    const tab = document.getElementById('instruction-tab');
+    let cameraStarted = false;
+
+    function toggleInstructions(forceHide = false) {
+        if (forceHide || !overlay.classList.contains('is-hidden')) {
+            overlay.classList.add('is-hidden');
+            tab.innerHTML = '<span>▲ MOSTRAR INSTRUCCIONES ▲</span>';
+            if (!cameraStarted) {
+                startCamera();
+                cameraStarted = true;
+            }
+        } else {
+            overlay.classList.remove('is-hidden');
+            tab.innerHTML = '<span>▼ ARRASTRA O TOCA PARA CONTINUAR ▼</span>';
+        }
+    }
+    tab.addEventListener('click', () => toggleInstructions());
+    let startY, initialY, dragging = false;
+    
+    function dragStart(e) {
+        if (!overlay.classList.contains('is-hidden')) {
+            e.preventDefault();
+            dragging = true;
+            initialY = overlay.getBoundingClientRect().top;
+            startY = e.pageY || e.touches[0].pageY;
+            overlay.style.transition = 'none';
+        }
+    }
+    function dragMove(e) {
+        if (!dragging) return;
+        const currentY = e.pageY || e.touches[0].pageY;
+        const diff = currentY - startY;
+        if (initialY + diff < 0) {
+            overlay.style.transform = `translateY(${initialY + diff}px)`;
+        }
+    }
+    function dragEnd(e) {
+        if (!dragging) return;
+        dragging = false;
+        overlay.style.transition = '';
+        overlay.style.transform = '';
+        const endY = e.pageY || e.changedTouches[0].pageY;
+        if (startY - endY > 50) {
+            toggleInstructions(true);
+        } else if (Math.abs(startY - endY) < 10) {
+            toggleInstructions();
+        }
+    }
+    overlay.addEventListener('mousedown', dragStart);
+    overlay.addEventListener('mousemove', dragMove);
+    overlay.addEventListener('mouseup', dragEnd);
+    overlay.addEventListener('mouseleave', dragEnd);
+    overlay.addEventListener('touchstart', dragStart);
+    overlay.addEventListener('touchmove', dragMove);
+    overlay.addEventListener('touchend', dragEnd);
+
+    // --- RESTO DEL CÓDIGO DE LA CÁMARA (sin cambios) ---
+    const video = document.getElementById('video');
+    const previewCanvas = document.getElementById('preview-canvas');
+    const captureView = document.getElementById('capture-view');
+    const ratingView = document.getElementById('rating-view');
+    const shutterBtn = document.getElementById('shutter-btn');
+    const sendBtn = document.getElementById('send-btn');
+    const retakeBtn = document.getElementById('retake-btn');
+    const status = document.getElementById('status');
+    const uploadUrl = "{{ url_for('main.upload') }}";
+    let capturedBlob = null;
+    let stream = null;
+    const constraints = { video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'environment' } };
+    async function startCamera() {
+        try {
+            if (stream) stream.getTracks().forEach(track => track.stop());
+            stream = await navigator.mediaDevices.getUserMedia(constraints);
+            video.srcObject = stream;
+            status.textContent = "";
+        } catch (err) {
+            console.error("Error al acceder a la cámara: ", err);
+            status.textContent = "Error: No se pudo acceder a la cámara. Asegúrate de dar permiso.";
+        }
+    }
+    shutterBtn.addEventListener('click', () => {
+        const context = previewCanvas.getContext('2d');
+        previewCanvas.width = 640;
+        previewCanvas.height = 480;
+        const videoWidth = video.videoWidth;
+        const videoHeight = video.videoHeight;
+        const targetAspectRatio = 640 / 480;
+        let sourceWidth = videoWidth, sourceHeight = videoHeight, sx = 0, sy = 0;
+        if ((videoWidth / videoHeight) > targetAspectRatio) {
+            sourceWidth = videoHeight * targetAspectRatio;
+            sx = (videoWidth - sourceWidth) / 2;
+        } else {
+            sourceHeight = videoWidth / targetAspectRatio;
+            sy = (videoHeight - sourceHeight) / 2;
+        }
+        context.drawImage(video, sx, sy, sourceWidth, sourceHeight, 0, 0, 640, 480);
+        previewCanvas.toBlob(blob => { capturedBlob = blob; }, 'image/jpeg');
+        if (stream) stream.getTracks().forEach(track => track.stop());
+        captureView.classList.add('hidden');
+        ratingView.classList.remove('hidden');
+    });
+    retakeBtn.addEventListener('click', () => {
+        ratingView.classList.add('hidden');
+        captureView.classList.remove('hidden');
+        capturedBlob = null;
+        startCamera();
+    });
+    sendBtn.addEventListener('click', async () => {
+        sendBtn.disabled = true;
+        retakeBtn.disabled = true;
+        status.textContent = 'Obteniendo ubicación...';
+        try {
+            const position = await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+            });
+            status.textContent = 'Enviando datos...';
+            const formData = new FormData();
+            formData.append('file', capturedBlob, 'banqueta_capturada.jpg');
+            formData.append('latitude', position.coords.latitude);
+            formData.append('longitude', position.coords.longitude);
+            const accessibilityChoice = document.querySelector('input[name="accessibility"]:checked').value;
+            formData.append('accessibility', accessibilityChoice);
+            const observationsText = document.getElementById('observations-text').value;
+            formData.append('observations', observationsText);
+            const response = await fetch(uploadUrl, { method: 'POST', body: formData });
+            const html = await response.text();
+            document.open();
+            document.write(html);
+            document.close();
+        } catch (error) {
+            console.error(error);
+            status.textContent = "Error al obtener ubicación o enviar. Inténtalo de nuevo.";
+            sendBtn.disabled = false;
+            retakeBtn.disabled = false;
+        }
+    });
+});
+</script>
+{% endblock %}
