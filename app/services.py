@@ -15,7 +15,7 @@ from huggingface_hub import hf_hub_download
 # Importaciones de tu app
 from app.extensions import db
 from app.models import Report
-
+from datetime import datetime
 # --- CONFIGURACIÓN DE LOS REPOSITORIOS (LA FUENTE DE VERDAD) ---
 MODEL_REPO_ID = "joshieadalid/SubeTuBanqueta-Modelo"
 DATA_REPO_ID = "joshieadalid/SubeTuBanqueta"  # Repo para datos
@@ -114,69 +114,106 @@ def classify_image_local(image_path):
 # --- 4. HIDRATACIÓN DE DATOS ---
 def seed_database(app):
     """
-    AUTO-HIDRATACIÓN:
-    Si la base de datos está vacía, descarga datos desde Hugging Face Datasets,
-    restaura las imágenes y registros históricos.
+    AUTO-HIDRATACIÓN IDEMPOTENTE:
+    Descarga datos de Hugging Face y puebla la BD sin crear duplicados.
     """
     print(">> [Data Bootstrap] Verificando estado de la memoria...")
 
-    # Verificar si ya hay datos
-    if Report.query.first() is not None:
-        print("✅ Base de datos ya poblada. Sistema listo para operar.")
-        return
-
-    print("💧 Sistema vacío detectado. Iniciando protocolo de hidratación desde Hugging Face...")
+    # NOTA: Ya no hacemos el "return" si hay datos, porque queremos
+    # poder correr esto para agregar datos nuevos sin borrar los viejos.
     
     upload_folder = app.config['UPLOAD_FOLDER']
     os.makedirs(upload_folder, exist_ok=True)
 
     try:
-        # Descargar y descomprimir imágenes
-        print(f"⬇️ Descargando imágenes: {ZIP_FILENAME}...")
+        # 1. Descargar recursos si no existen (Caché inteligente de HF)
+        print(f"⬇️ Sincronizando imágenes: {ZIP_FILENAME}...")
         zip_path = hf_hub_download(
             repo_id=DATA_REPO_ID, 
             filename=ZIP_FILENAME, 
             repo_type="dataset"
         )
         
+        # Descomprimir siempre es seguro (sobreescribe archivos si ya existen)
         print(f"📦 Descomprimiendo en {upload_folder}...")
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(upload_folder)
-        print("✅ Imágenes restauradas.")
 
-        # Descargar y procesar datos
-        print(f"⬇️ Descargando datos: {CSV_FILENAME}...")
+        print(f"⬇️ Sincronizando datos: {CSV_FILENAME}...")
         csv_path = hf_hub_download(
             repo_id=DATA_REPO_ID, 
             filename=CSV_FILENAME, 
             repo_type="dataset"
         )
         
-        print("📄 Importando registros a SQL...")
+        print("📄 Procesando CSV e importando a SQL...")
         row_count = 0
+        
+        # --- OPTIMIZACIÓN: Cargar catálogo existente en RAM ---
+        # Esto evita hacer miles de consultas a la BD.
+        # Creamos un conjunto (set) con los nombres de archivo que YA tenemos.
+        existing_filenames = {
+            r[0] for r in db.session.query(Report.file_name).all()
+        }
         
         with open(csv_path, newline='', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             
             for row in reader:
+                filename = row.get('imagen_nombre')
+                
+                # A. FILTRO DE DUPLICADOS (La Vacuna 💉)
+                # Si el archivo ya está en la BD, saltamos al siguiente.
+                if filename in existing_filenames:
+                    continue
+
+                # B. FILTRO DE BASURA (Coordenadas)
+                lat_raw = row.get('lat')
+                lon_raw = row.get('lon')
+                
+                # Si no hay latitud o dice 'unknown', es basura.
+                if not lat_raw or not lon_raw or 'unknown' in str(lat_raw).lower():
+                    continue
+
+                # C. PARSEO DE FECHA HISTÓRICA
+                # Intentamos leer la fecha del CSV. Si falla, usamos 'ahora'.
+                fecha_csv = row.get('fecha')
+                report_date = datetime.now()
+                
+                if fecha_csv:
+                    try:
+                        # Intenta formato ISO (2025-12-14T12:00:00) o estándar
+                        report_date = datetime.fromisoformat(str(fecha_csv).replace('Z', ''))
+                    except ValueError:
+                        pass # Si falla, se queda con datetime.now()
+
+                # D. CREACIÓN DEL REPORTE
                 new_report = Report(
-                    file_name = row.get('imagen_nombre'), 
-                    location = f"{row.get('lat')},{row.get('lon')}",
+                    file_name = filename, 
+                    location = f"{lat_raw},{lon_raw}",
                     observations = row.get('observaciones', ''),
                     report_type = 'dataset_historico',
-                    user_accessibility = row.get('etiqueta_real'),
-                    model_accessibility = row.get('prediccion'),
+                    user_accessibility = row.get('etiqueta_real'), # Tu etiqueta manual
+                    model_accessibility = row.get('prediccion'),   # La predicción guardada
+                    date = report_date # Usamos la fecha real del evento
                 )
+                
                 db.session.add(new_report)
+                
+                # Agregamos al set local para evitar duplicados dentro del mismo CSV
+                existing_filenames.add(filename)
                 row_count += 1
         
         db.session.commit()
-        print(f"✅ ¡Hidratación completada! Se restauraron {row_count} registros.")
+        
+        if row_count > 0:
+            print(f"✅ ¡Hidratación completada! Se insertaron {row_count} registros NUEVOS.")
+        else:
+            print("✅ El sistema está actualizado. No se encontraron datos nuevos.")
 
     except Exception as e:
         db.session.rollback()
-        print(f"❌ Error crítico en Hidratación: {e}")
-        print("   La app iniciará vacía (sin datos históricos).")
+        print(f"❌ Error en Hidratación: {e}")
 
 # --- 5. FUNCIONES GEMINI (Respaldo) ---
 def configure_genai(api_key):
